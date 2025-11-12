@@ -7,11 +7,11 @@
 
 #define NUM_ARGS 100
 #define BUFFER_SIZE 1000
+#define NUM_CMDS 10
 int main(){
-    char *args[NUM_ARGS];
-    char buffer[BUFFER_SIZE], input_file[20], output_file[20];
+    char* commands[NUM_CMDS];
+    char buffer[BUFFER_SIZE];
     while(1){
-        int hasInput = 0, hasOutput = 0;
         printf("JohnShell> ");
         if(fgets(buffer, sizeof(buffer), stdin) == NULL)
             break;
@@ -21,33 +21,66 @@ int main(){
         if(strcmp(buffer, "exit") == 0)
             break;
 
-        int i = 0;
-        char *token = strtok(buffer," ");
-        while(token != NULL && i < NUM_ARGS-1){
-            if(strcmp(token,"<") == 0){
-                hasInput = 1;
-                token = strtok(NULL, " ");
-                if(token == NULL){
-                    printf("Input file not specified");
-                    exit(1);
-                }
-                strcpy(input_file, token);
-            }else if(strcmp(token,">") == 0){
-                hasOutput = 1;
-                token = strtok(NULL, " ");
-                if(token == NULL){
-                    printf("Ouput file not specified");
-                    exit(1);
-                }
-                strcpy(output_file, token);
-            }else{
-                args[i++] = token;
-            }
-            token = strtok(NULL, " ");
+        int cmds = 0;
+        char *token = strtok(buffer,"|");
+        while(token != NULL && cmds < NUM_CMDS){
+            commands[cmds++] = token;
+            token = strtok(NULL, "|"); 
         }
-        args[i] = NULL;
-        pid_t pid = fork();
-        if(pid == 0){
+
+        int pipes[NUM_CMDS-1][2];
+        for(int i = 0; i < cmds-1; i++){
+            if(pipe(pipes[i]) < 0){
+                perror("pipe failed");
+                exit(1);
+            }
+        }
+
+        for(int i = 0; i < cmds; i++){
+            pid_t pid = fork();
+            if(pid == 0){
+                if(i > 0){
+                    dup2(pipes[i-1][0], STDIN_FILENO);
+                }
+                
+                if(i < cmds - 1){
+                    dup2(pipes[i][1], STDOUT_FILENO);
+                }
+
+                for(int j = 0; j < cmds-1; j++){
+                    close(pipes[j][0]);
+                    close(pipes[j][1]);
+                }
+            }
+
+            int k = 0;
+            char *args[NUM_ARGS];
+            token = strtok(commands[i], " ");
+            char input_file[20], output_file[20];
+            int hasInput = 0, hasOutput = 0;
+            while(token != NULL && k < NUM_ARGS-1){
+                if(strcmp(token,"<") == 0){
+                    hasInput = 1;
+                    token = strtok(NULL, " ");
+                    if(token == NULL){
+                        printf("Input file not specified");
+                        exit(1);
+                    }
+                    strcpy(input_file, token);
+                }else if(strcmp(token,">") == 0){
+                    hasOutput = 1;
+                    token = strtok(NULL, " ");
+                    if(token == NULL){
+                        printf("Ouput file not specified");
+                        exit(1);
+                    }
+                    strcpy(output_file, token);
+                }else{
+                    args[k++] = token;
+                }
+                token = strtok(NULL, " ");
+            }
+            args[k] = NULL;
             if(hasInput){
                 int fd = open(input_file, O_RDONLY);
                 if(fd < 0){
@@ -69,9 +102,14 @@ int main(){
             execvp(args[0], args);
             perror("Execvp failed\n");
             exit(1);
-        }else{
+        }
+        for(int i = 0; i < cmds-1; i++){
+            close(pipes[i][0]);
+            close(pipes[i][1]);
+        }
+
+        for(int i = 0; i < cmds; i++){
             wait(NULL);
-            printf("Child Finished!\n");
         }
     }
     printf("Exiting Shell\n");
