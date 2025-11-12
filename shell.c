@@ -10,8 +10,8 @@
 int main(){
     char *args[NUM_ARGS];
     char buffer[BUFFER_SIZE], input_file[20], output_file[20];
-    int hasInput = 0, hasOutput = 0;
     while(1){
+        int hasInput = 0, hasOutput = 0;
         printf("JohnShell> ");
         if(fgets(buffer, sizeof(buffer), stdin) == NULL)
             break;
@@ -24,7 +24,7 @@ int main(){
         int i = 0;
         char *token = strtok(buffer," ");
         while(token != NULL && i < NUM_ARGS-1){
-            if(token == "<"){
+            if(strcmp(token,"<") == 0){
                 hasInput = 1;
                 token = strtok(NULL, " ");
                 if(token == NULL){
@@ -32,7 +32,7 @@ int main(){
                     exit(1);
                 }
                 strcpy(input_file, token);
-            }else if(token == ">"){
+            }else if(strcmp(token,">") == 0){
                 hasOutput = 1;
                 token = strtok(NULL, " ");
                 if(token == NULL){
@@ -42,9 +42,8 @@ int main(){
                 strcpy(output_file, token);
             }else{
                 args[i++] = token;
-                token = strtok(NULL, " ");
             }
-            
+            token = strtok(NULL, " ");
         }
         args[i] = NULL;
         pid_t pid = fork();
@@ -53,16 +52,16 @@ int main(){
                 int fd = open(input_file, O_RDONLY);
                 if(fd < 0){
                     perror("Input file error");
-                    exit(1);
+                    break;
                 }
                 dup2(fd, STDIN_FILENO);
                 close(fd);
             }
             if(hasOutput){
-                int fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                int fd = open(output_file, O_WRONLY, 0644);
                 if(fd < 0){
                     perror("Output file error");
-                    exit(1);
+                    break;
                 }
                 dup2(fd, STDOUT_FILENO);
                 close(fd);
