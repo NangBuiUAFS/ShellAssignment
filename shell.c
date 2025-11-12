@@ -3,12 +3,14 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 #define NUM_ARGS 100
 #define BUFFER_SIZE 1000
 int main(){
     char *args[NUM_ARGS];
-    char buffer[BUFFER_SIZE];
+    char buffer[BUFFER_SIZE], input_file[20], output_file[20];
+    int hasInput = 0, hasOutput = 0;
     while(1){
         printf("JohnShell> ");
         if(fgets(buffer, sizeof(buffer), stdin) == NULL)
@@ -16,17 +18,55 @@ int main(){
         
         buffer[strcspn(buffer, "\n")] = '\0';
 
-        if(strcmp(buffer, "exit"))
+        if(strcmp(buffer, "exit") == 0)
             break;
 
         int i = 0;
         char *token = strtok(buffer," ");
-        while(token != NULL && i < NUM_ARGS){
-            args[i++] = token;
-            token = strtok("NULL", " ");
+        while(token != NULL && i < NUM_ARGS-1){
+            if(token == "<"){
+                hasInput = 1;
+                token = strtok(NULL, " ");
+                if(token == NULL){
+                    printf("Input file not specified");
+                    exit(1);
+                }
+                strcpy(input_file, token);
+            }else if(token == ">"){
+                hasOutput = 1;
+                token = strtok(NULL, " ");
+                if(token == NULL){
+                    printf("Ouput file not specified");
+                    exit(1);
+                }
+                strcpy(output_file, token);
+            }else{
+                args[i++] = token;
+                token = strtok(NULL, " ");
+            }
+            
         }
+        args[i] = NULL;
         pid_t pid = fork();
         if(pid == 0){
+            if(hasInput){
+                int fd = open(input_file, O_RDONLY);
+                if(fd < 0){
+                    perror("Input file error");
+                    exit(1);
+                }
+                dup2(fd, STDIN_FILENO);
+                close(fd);
+            }
+            if(hasOutput){
+                int fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                if(fd < 0){
+                    perror("Output file error");
+                    exit(1);
+                }
+                dup2(fd, STDOUT_FILENO);
+                close(fd);
+            }
             execvp(args[0], args);
             perror("Execvp failed\n");
             exit(1);
