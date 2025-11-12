@@ -51,57 +51,56 @@ int main(){
                     close(pipes[j][0]);
                     close(pipes[j][1]);
                 }
-            }
-
-            int k = 0;
-            char *args[NUM_ARGS];
-            token = strtok(commands[i], " ");
-            char input_file[20], output_file[20];
-            int hasInput = 0, hasOutput = 0;
-            while(token != NULL && k < NUM_ARGS-1){
-                if(strcmp(token,"<") == 0){
-                    hasInput = 1;
-                    token = strtok(NULL, " ");
-                    if(token == NULL){
-                        printf("Input file not specified");
-                        exit(1);
+                int k = 0;
+                char *args[NUM_ARGS];
+                token = strtok(commands[i], " ");
+                char input_file[20], output_file[20];
+                int hasInput = 0, hasOutput = 0;
+                while(token != NULL && k < NUM_ARGS-1){
+                    if(strcmp(token,"<") == 0){
+                        hasInput = 1;
+                        token = strtok(NULL, " ");
+                        if(token == NULL){
+                            printf("Input file not specified");
+                            exit(1);
+                        }
+                        strcpy(input_file, token);
+                    }else if(strcmp(token,">") == 0){
+                        hasOutput = 1;
+                        token = strtok(NULL, " ");
+                        if(token == NULL){
+                            printf("Ouput file not specified");
+                            exit(1);
+                        }
+                        strcpy(output_file, token);
+                    }else{
+                        args[k++] = token;
                     }
-                    strcpy(input_file, token);
-                }else if(strcmp(token,">") == 0){
-                    hasOutput = 1;
                     token = strtok(NULL, " ");
-                    if(token == NULL){
-                        printf("Ouput file not specified");
-                        exit(1);
+                }
+                args[k] = NULL;
+                if(hasInput){
+                    int fd = open(input_file, O_RDONLY);
+                    if(fd < 0){
+                        perror("Input file error");
+                        break;
                     }
-                    strcpy(output_file, token);
-                }else{
-                    args[k++] = token;
+                    dup2(fd, STDIN_FILENO);
+                    close(fd);
                 }
-                token = strtok(NULL, " ");
-            }
-            args[k] = NULL;
-            if(hasInput){
-                int fd = open(input_file, O_RDONLY);
-                if(fd < 0){
-                    perror("Input file error");
-                    break;
+                if(hasOutput){
+                    int fd = open(output_file, O_WRONLY, 0644);
+                    if(fd < 0){
+                        perror("Output file error");
+                        break;
+                    }
+                    dup2(fd, STDOUT_FILENO);
+                    close(fd);
                 }
-                dup2(fd, STDIN_FILENO);
-                close(fd);
+                execvp(args[0], args);
+                perror("Execvp failed\n");
+                exit(1);
             }
-            if(hasOutput){
-                int fd = open(output_file, O_WRONLY, 0644);
-                if(fd < 0){
-                    perror("Output file error");
-                    break;
-                }
-                dup2(fd, STDOUT_FILENO);
-                close(fd);
-            }
-            execvp(args[0], args);
-            perror("Execvp failed\n");
-            exit(1);
         }
         for(int i = 0; i < cmds-1; i++){
             close(pipes[i][0]);
