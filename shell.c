@@ -8,9 +8,24 @@
 #define NUM_ARGS 100
 #define BUFFER_SIZE 1000
 #define NUM_CMDS 10
+
+pid_t child_pids[NUM_CMDS];
+int children = 0;
+
+
+void handle_sigint(int sig){
+    for(int i = 0; i < children; i++){
+        if(child_pids[i] > 0){
+            kill(child_pids[i], SIGINT);
+        }
+    }
+    printf("\nJohnShell> ");
+}
+
 int main(){
     char* commands[NUM_CMDS];
     char buffer[BUFFER_SIZE];
+    signal(SIGINT, handle_sigint);
     while(1){
         printf("JohnShell> ");
         if(fgets(buffer, sizeof(buffer), stdin) == NULL)
@@ -89,7 +104,7 @@ int main(){
                     close(fd);
                 }
                 if(hasOutput){
-                    int fd = open(output_file, O_WRONLY, 0644);
+                    int fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
                     if(fd < 0){
                         perror("Output file error");
                         break;
@@ -100,6 +115,9 @@ int main(){
                 execvp(args[0], args);
                 perror("Execvp failed\n");
                 exit(1);
+            }else {
+                child_pids[i] = pid;
+                children++;
             }
         }
         for(int i = 0; i < cmds-1; i++){
@@ -108,8 +126,9 @@ int main(){
         }
 
         for(int i = 0; i < cmds; i++){
-            wait(NULL);
+            waitpid(child_pids[i], NULL, 0);
         }
+        children = 0;
     }
     printf("Exiting Shell\n");
 }

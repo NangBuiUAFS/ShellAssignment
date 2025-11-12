@@ -1,12 +1,1 @@
-"Con Cac"
-put.txt
-shell
-shell.c
-test
-World"
-Nov 11 22:04 "Hello
--rw-r--r-- 1 student student    56 Nov 11 22:04 output.txt
--rwxr-xr-x 1 student student 16704 Nov 11 22:07 shell
--rw-r--r-- 1 student student  2237 Nov 11 22:07 shell.c
-drwxr-xr-x 2 student student  4096 Nov 11 19:21 test
--rw-r--r-- 1 student student     0 Nov 11 22:04 World"
+"Hello world"
